@@ -1,34 +1,30 @@
-package controllers
+package handlers
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
 
-	"ep-backend/models"
+	"ep-backend/users"
 )
 
-// RegisterHandler handles user registration requests
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// Allow only POST requests
 	if r.Method != http.MethodPost {
 		http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
-
 		return
 	}
 
 	// Decode the JSON request body into a User struct
-	var user models.User
+	var user users.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	// Try to create the user in the database
-	if err := models.CreateUser(user); err != nil {
-		http.Error(w, "User already exists or cannot create user", http.StatusConflict)
-
+	if err := users.CreateUser(user); err != nil {
+		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
 
@@ -37,35 +33,23 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "User %s is registered successfully", user.Username)
 }
 
-// LoginHandler handles user login requests
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	// Allow only POST requests
 	if r.Method != http.MethodPost {
 		http.Error(w, "Request method not allowed", http.StatusMethodNotAllowed)
-
 		return
 	}
 
 	// Decode the JSON request body into a Credential struct
-	var credential models.Credential
+	var credential users.Credential
 	if err := json.NewDecoder(r.Body).Decode(&credential); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
-
 		return
 	}
 
-	// Authenticate the user
-	_, err := models.AuthenticateUser(credential)
+	err := users.AuthenticateUser(credential)
 	if err != nil {
-		// Handle the case where the user is not found
-		if err.Error() == "user not found" {
-			http.Error(w, "User not found", http.StatusNotFound)
-
-			return
-		}
-		// Handle other errors (e.g., database errors)
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-
+		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 

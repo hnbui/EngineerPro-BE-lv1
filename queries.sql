@@ -1,0 +1,8 @@
+CREATE DATABASE IF NOT EXISTS engineerpro;
+
+CREATE TABLE IF NOT EXISTS engineerpro.users (
+	id INTEGER PRIMARY KEY AUTO_INCREMENT,
+	username VARCHAR(255) NOT NULL UNIQUE,
+	password VARCHAR(255) NOT NULL,
+	profile_photo_url TEXT
+);
