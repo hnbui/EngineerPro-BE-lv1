@@ -11,6 +11,7 @@ import (
 var ctx = context.Background()
 var rdb *redis.Client
 
+// Initialize Redis connection
 func InitRedis() {
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",

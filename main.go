@@ -22,6 +22,8 @@ func main() {
 		})
 	})
 
+	router.POST("login")
+
 	// Start the Gin server
 	router.Run(":8080")
 }
