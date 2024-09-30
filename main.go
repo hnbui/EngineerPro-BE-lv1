@@ -1,24 +1,27 @@
 package main
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 
-	_ "github.com/go-sql-driver/mysql"
+	"github.com/gin-gonic/gin"
 
-	"ep-backend/handlers"
+	"engineerpro/configs"
 )
 
 func main() {
-	// HTTP request handlers
-	http.HandleFunc("/register", handlers.RegisterHandler)
-	http.HandleFunc("/login", handlers.LoginHandler)
+	// Initialize Redis connection
+	configs.InitRedis()
 
-	// Start the server
-	fmt.Println("Server running on http://localhost:8080")
-	err := http.ListenAndServe(":8080", nil)
-	if err != nil {
-		log.Fatalf("Error starting server: %v", err)
-	}
+	// Set up the Gin router
+	router := gin.Default()
+
+	// Define routes
+	router.GET("/ping", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "pong",
+		})
+	})
+
+	// Start the Gin server
+	router.Run(":8080")
 }
