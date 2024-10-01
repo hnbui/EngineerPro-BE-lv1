@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -10,7 +11,16 @@ import (
 
 func main() {
 	// Initialize Redis connection
-	configs.InitRedis()
+	err := configs.InitRedis()
+	if err != nil {
+		panic(fmt.Sprintf("Couldn't connect to Redis: %v", err))
+	}
+
+	// Initialize MySQL database connection
+	err = configs.InitDB()
+	if err != nil {
+		panic(fmt.Sprintf("Couldn't connect to MySQL: %v", err))
+	}
 
 	// Set up the Gin router
 	router := gin.Default()
@@ -21,8 +31,6 @@ func main() {
 			"message": "pong",
 		})
 	})
-
-	router.POST("login")
 
 	// Start the Gin server
 	router.Run(":8080")

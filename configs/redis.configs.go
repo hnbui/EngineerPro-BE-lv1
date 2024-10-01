@@ -3,6 +3,7 @@ package configs
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/go-redis/redis/v8"
 )
@@ -12,7 +13,7 @@ var ctx = context.Background()
 var rdb *redis.Client
 
 // Initialize Redis connection
-func InitRedis() {
+func InitRedis() error {
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "", // no password set
@@ -22,7 +23,10 @@ func InitRedis() {
 	// Test connection
 	pong, err := rdb.Ping(ctx).Result()
 	if err != nil {
-		panic(fmt.Sprintf("Couldn't connect to Redis: %v", err))
+		log.Fatal(err)
 	}
+
 	fmt.Println("Redis connected:", pong)
+
+	return nil
 }
