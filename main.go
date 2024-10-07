@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/gin-contrib/sessions"
 	redisStore "github.com/gin-contrib/sessions/redis"
@@ -28,8 +29,12 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-var ctx = context.Background()
-var rdb *redis.Client
+var (
+	ctx       = context.Background()
+	rdb       *redis.Client
+	mu        sync.Mutex
+	pingCount int
+)
 
 type Credentials struct {
 	Username string `json:"username" binding:"required"`
@@ -80,6 +85,10 @@ func PingHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized"})
 		return
 	}
+
+	// Use Mutex to ensure only one user is allowed to ping at a time
+	mu.Lock()
+
 }
 
 func AuthMiddleware() gin.HandlerFunc {
@@ -102,7 +111,7 @@ func main() {
 	rdb = InitRedis()
 
 	// Initialize Redis storage
-	store, err := redisStore.NewStore(10, "tcp", "localhost:6739", "pass", []byte("test"))
+	store, err := redisStore.NewStore(10, "tcp", "localhost:6379", "pass", []byte("test"))
 	if err != nil {
 		log.Fatalf("Failed to create Redis store %v", err)
 	}
