@@ -22,9 +22,10 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gin-contrib/sessions"
-	redisStore "github.com/gin-contrib/sessions/redis"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 )
@@ -78,19 +79,6 @@ func LoginHandler(c *gin.Context) {
 	}
 }
 
-func PingHandler(c *gin.Context) {
-	sessions := sessions.Default(c)
-	username := sessions.Get("username")
-	if username == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Unauthorized"})
-		return
-	}
-
-	// Use Mutex to ensure only one user is allowed to ping at a time
-	mu.Lock()
-
-}
-
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		sessions := sessions.Default(c)
@@ -103,29 +91,69 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+func AcquireLock(rdb *redis.Client, key string, expiration time.Duration) bool {
+	// Use Redis's SetNX command to acquire a lock
+	ok, err := rdb.SetNX(ctx, key, "locked", expiration).Result()
+	if err != nil {
+		log.Printf("Failed to acquire lock for key %s: %v", key, err)
+		return false
+	}
+	return ok
+}
+
+func ReleaseLock(rdb *redis.Client, key string) {
+	_, err := rdb.Del(ctx, key).Result()
+	if err != nil {
+		log.Printf("Failed to release lock for key %s: %v", key, err)
+	}
+}
+
+func PingHandler(c *gin.Context) {
+	lockKey := "ping"
+	lockExpiration := 5 * time.Second
+
+	// Try to acquire lock
+	if !AcquireLock(rdb, lockKey, lockExpiration) {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "Another user is already accessing this API. Please try again later."})
+		return
+	}
+
+	time.Sleep(5 * time.Second)
+
+	ReleaseLock(rdb, lockKey)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Ping successful!"})
+}
+
 func main() {
 	// Set up the Gin router
 	router := gin.Default()
 
-	// Initialize Redis client
-	rdb = InitRedis()
+	// // Initialize Redis client
+	// rdb = InitRedis()
 
-	// Initialize Redis storage
-	store, err := redisStore.NewStore(10, "tcp", "localhost:6379", "pass", []byte("test"))
-	if err != nil {
-		log.Fatalf("Failed to create Redis store %v", err)
-	}
+	// // Initialize Redis storage
+	// store, err := redisStore.NewStore(10, "tcp", "localhost:6379", "", []byte("test"))
+	// if err != nil {
+	// 	log.Fatalf("Failed to create Redis store %v", err)
+	// }
 
+	// router.Use(sessions.Sessions("loginsession", store))
+
+	// Use a cookie-based session store instead of Redis for this test
+	store := cookie.NewStore([]byte("secret"))
 	router.Use(sessions.Sessions("loginsession", store))
 
 	// Define routes
 	router.POST("/login", LoginHandler)
 
-	authorized := router.Group("/")
-	authorized.Use(AuthMiddleware())
-	{
-		authorized.GET("/ping", PingHandler)
-	}
+	router.GET("/ping", PingHandler)
+
+	// authorized := router.Group("/")
+	// // authorized.Use(AuthMiddleware())
+	// {
+	// 	authorized.GET("/ping", PingHandler)
+	// }
 
 	// Start the Gin server
 	router.Run(":8080")
